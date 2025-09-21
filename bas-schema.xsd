@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="http://bas.hd.ui.xml/29.3.1"
+           xmlns:bas="http://bas.hd.ui.xml/29.3.1"
+           elementFormDefault="qualified">
+
+  <!-- Root element for BAS configuration -->
+  <xs:element name="bas-config" type="bas:BasConfigType"/>
+
+  <!-- Main configuration type -->
+  <xs:complexType name="BasConfigType">
+    <xs:sequence>
+      <xs:element name="system-info" type="bas:SystemInfoType"/>
+      <xs:element name="devices" type="bas:DevicesType" minOccurs="0"/>
+      <xs:element name="automation" type="bas:AutomationType" minOccurs="0"/>
+      <xs:element name="ui-configuration" type="bas:UIConfigType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="version" type="xs:string" use="required"/>
+    <xs:attribute name="generated" type="xs:dateTime" use="required"/>
+  </xs:complexType>
+
+  <!-- System information type -->
+  <xs:complexType name="SystemInfoType">
+    <xs:sequence>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="description" type="xs:string"/>
+      <xs:element name="version" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Devices container type -->
+  <xs:complexType name="DevicesType">
+    <xs:sequence>
+      <xs:element name="device" type="bas:DeviceType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual device type -->
+  <xs:complexType name="DeviceType">
+    <xs:sequence>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="location" type="xs:string"/>
+      <xs:element name="protocol" type="bas:ProtocolType"/>
+      <xs:element name="properties" type="bas:PropertiesType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="type" type="bas:DeviceTypeEnum" use="required"/>
+  </xs:complexType>
+
+  <!-- Device type enumeration -->
+  <xs:simpleType name="DeviceTypeEnum">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="hvac"/>
+      <xs:enumeration value="lighting"/>
+      <xs:enumeration value="security"/>
+      <xs:enumeration value="occupancy"/>
+      <xs:enumeration value="energy"/>
+      <xs:enumeration value="fire-safety"/>
+      <xs:enumeration value="access-control"/>
+      <xs:enumeration value="elevator"/>
+      <xs:enumeration value="water-management"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Protocol type enumeration -->
+  <xs:simpleType name="ProtocolType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="BACnet"/>
+      <xs:enumeration value="Modbus"/>
+      <xs:enumeration value="DALI"/>
+      <xs:enumeration value="KNX"/>
+      <xs:enumeration value="LonWorks"/>
+      <xs:enumeration value="MQTT"/>
+      <xs:enumeration value="HTTP"/>
+      <xs:enumeration value="TCP"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Properties container type -->
+  <xs:complexType name="PropertiesType">
+    <xs:sequence>
+      <xs:element name="property" type="bas:PropertyType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual property type -->
+  <xs:complexType name="PropertyType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="name" type="xs:string" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- Automation container type -->
+  <xs:complexType name="AutomationType">
+    <xs:sequence>
+      <xs:element name="rule" type="bas:RuleType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Automation rule type -->
+  <xs:complexType name="RuleType">
+    <xs:sequence>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="description" type="xs:string"/>
+      <xs:element name="conditions" type="bas:ConditionsType" minOccurs="0"/>
+      <xs:element name="actions" type="bas:ActionsType" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+    <xs:attribute name="enabled" type="xs:boolean" default="true"/>
+  </xs:complexType>
+
+  <!-- Conditions container type -->
+  <xs:complexType name="ConditionsType">
+    <xs:sequence>
+      <xs:element name="condition" type="bas:ConditionType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual condition type -->
+  <xs:complexType name="ConditionType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="device" type="xs:string" use="required"/>
+        <xs:attribute name="property" type="xs:string" use="required"/>
+        <xs:attribute name="operator" type="bas:OperatorType" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- Operator enumeration -->
+  <xs:simpleType name="OperatorType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="equals"/>
+      <xs:enumeration value="not-equals"/>
+      <xs:enumeration value="greater-than"/>
+      <xs:enumeration value="less-than"/>
+      <xs:enumeration value="greater-equal"/>
+      <xs:enumeration value="less-equal"/>
+      <xs:enumeration value="contains"/>
+      <xs:enumeration value="between"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Actions container type -->
+  <xs:complexType name="ActionsType">
+    <xs:sequence>
+      <xs:element name="action" type="bas:ActionType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual action type -->
+  <xs:complexType name="ActionType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="device" type="xs:string" use="required"/>
+        <xs:attribute name="property" type="xs:string" use="required"/>
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <!-- UI Configuration type -->
+  <xs:complexType name="UIConfigType">
+    <xs:sequence>
+      <xs:element name="theme" type="xs:string"/>
+      <xs:element name="language" type="bas:LanguageType"/>
+      <xs:element name="refresh-interval" type="xs:positiveInteger"/>
+      <xs:element name="dashboards" type="bas:DashboardsType" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Language enumeration -->
+  <xs:simpleType name="LanguageType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ko"/>
+      <xs:enumeration value="en"/>
+      <xs:enumeration value="ja"/>
+      <xs:enumeration value="zh"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- Dashboards container type -->
+  <xs:complexType name="DashboardsType">
+    <xs:sequence>
+      <xs:element name="dashboard" type="bas:DashboardType" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Individual dashboard type -->
+  <xs:complexType name="DashboardType">
+    <xs:sequence>
+      <xs:element name="name" type="xs:string"/>
+      <xs:element name="layout" type="bas:LayoutType"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
+  </xs:complexType>
+
+  <!-- Layout enumeration -->
+  <xs:simpleType name="LayoutType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="grid"/>
+      <xs:enumeration value="list"/>
+      <xs:enumeration value="chart"/>
+      <xs:enumeration value="card"/>
+      <xs:enumeration value="table"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>
