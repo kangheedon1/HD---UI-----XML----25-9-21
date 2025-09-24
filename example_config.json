@@ -1,0 +1,173 @@
+{
+  "system_name": "HD-Smart-Building-Demo",
+  "description": "HD 스마트 빌딩 데모 시스템 - BAS 29.3.1 통합",
+  "devices": [
+    {
+      "id": "hvac-main-001",
+      "type": "hvac",
+      "name": "메인 HVAC 시스템",
+      "location": "기계실 1층",
+      "protocol": "BACnet",
+      "properties": {
+        "temperature_setpoint": 23.0,
+        "humidity_setpoint": 45.0,
+        "mode": "auto",
+        "schedule_enabled": true,
+        "energy_saving_mode": true
+      }
+    },
+    {
+      "id": "lighting-floor1-001",
+      "type": "lighting",
+      "name": "1층 LED 조명 시스템",
+      "location": "1층 전체",
+      "protocol": "DALI",
+      "properties": {
+        "dimming_level": 85,
+        "color_temperature": 4000,
+        "daylight_sensor": true,
+        "occupancy_control": true
+      }
+    },
+    {
+      "id": "security-main-001",
+      "type": "security",
+      "name": "통합 보안 시스템",
+      "location": "빌딩 전체",
+      "protocol": "TCP",
+      "properties": {
+        "armed_status": "partial",
+        "motion_detection": true,
+        "camera_recording": true,
+        "access_control": true
+      }
+    },
+    {
+      "id": "occupancy-001",
+      "type": "occupancy",
+      "name": "점유 감지 센서",
+      "location": "사무실 구역",
+      "protocol": "MQTT",
+      "properties": {
+        "detection_range": 8.0,
+        "sensitivity": "medium",
+        "reporting_interval": 30
+      }
+    },
+    {
+      "id": "energy-meter-001",
+      "type": "energy",
+      "name": "전력 계측기",
+      "location": "전기실",
+      "protocol": "Modbus",
+      "properties": {
+        "voltage": 220,
+        "current": 45.2,
+        "power": 9944,
+        "power_factor": 0.98
+      }
+    }
+  ],
+  "automation": [
+    {
+      "id": "energy-optimization-001",
+      "name": "에너지 최적화 규칙",
+      "description": "점유 상태에 따른 자동 에너지 절약",
+      "enabled": true,
+      "conditions": [
+        {
+          "device": "occupancy-001",
+          "property": "presence",
+          "operator": "equals",
+          "value": false
+        }
+      ],
+      "actions": [
+        {
+          "device": "hvac-main-001",
+          "property": "energy_saving_mode",
+          "value": "on"
+        },
+        {
+          "device": "lighting-floor1-001",
+          "property": "dimming_level",
+          "value": 20
+        }
+      ]
+    },
+    {
+      "id": "security-auto-001",
+      "name": "자동 보안 모드",
+      "description": "업무 시간 외 자동 보안 활성화",
+      "enabled": true,
+      "conditions": [
+        {
+          "device": "occupancy-001",
+          "property": "presence",
+          "operator": "equals",
+          "value": false
+        }
+      ],
+      "actions": [
+        {
+          "device": "security-main-001",
+          "property": "armed_status",
+          "value": "full"
+        }
+      ]
+    },
+    {
+      "id": "comfort-control-001",
+      "name": "쾌적성 제어",
+      "description": "온도와 조명 자동 조절",
+      "enabled": true,
+      "conditions": [
+        {
+          "device": "hvac-main-001",
+          "property": "temperature",
+          "operator": "greater-than",
+          "value": 25
+        }
+      ],
+      "actions": [
+        {
+          "device": "hvac-main-001",
+          "property": "temperature_setpoint",
+          "value": 22
+        },
+        {
+          "device": "lighting-floor1-001",
+          "property": "color_temperature",
+          "value": 3500
+        }
+      ]
+    }
+  ],
+  "ui_config": {
+    "theme": "hd-advanced-theme",
+    "language": "ko",
+    "refresh_interval": 15,
+    "dashboards": [
+      {
+        "id": "main",
+        "name": "메인 대시보드",
+        "layout": "grid"
+      },
+      {
+        "id": "energy",
+        "name": "에너지 관리",
+        "layout": "chart"
+      },
+      {
+        "id": "security",
+        "name": "보안 관리",
+        "layout": "list"
+      },
+      {
+        "id": "comfort",
+        "name": "쾌적성 제어",
+        "layout": "card"
+      }
+    ]
+  }
+}

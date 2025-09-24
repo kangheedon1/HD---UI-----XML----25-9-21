@@ -1,0 +1,42 @@
+<bas-config xmlns="http://bas.hd.ui.xml/29.3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://bas.hd.ui.xml/29.3.1 http://bas.hd.ui.xml/29.3.1/bas-schema.xsd" version="29.3.1" generated="2025-09-21T10:56:07.024529">
+  <system-info>
+    <name>HD-BAS-Basic</name>
+    <description>Basic Building Automation System Configuration</description>
+    <version>29.3.1</version>
+  </system-info>
+  <devices>
+    <device id="hvac-001" type="hvac">
+      <name>Main HVAC Unit</name>
+      <location>Building A - Floor 1</location>
+      <protocol>BACnet</protocol>
+      <properties>
+        <property name="temperature_setpoint">22.0</property>
+        <property name="humidity_setpoint">50.0</property>
+        <property name="mode">auto</property>
+      </properties>
+    </device>
+  </devices>
+  <automation>
+    <rule id="energy-save-001" enabled="true">
+      <name>Energy Saving Rule</name>
+      <description>Turn off HVAC when no occupancy</description>
+      <conditions>
+        <condition device="occupancy-001" property="presence" operator="equals">False</condition>
+      </conditions>
+      <actions>
+        <action device="hvac-001" property="power">off</action>
+      </actions>
+    </rule>
+  </automation>
+  <ui-configuration>
+    <theme>hd-theme</theme>
+    <language>ko</language>
+    <refresh-interval>30</refresh-interval>
+    <dashboards>
+      <dashboard id="main">
+        <name>메인 대시보드</name>
+        <layout>grid</layout>
+      </dashboard>
+    </dashboards>
+  </ui-configuration>
+</bas-config>
