@@ -7,9 +7,15 @@ Integrates with HD UI framework for XML configuration generation
 
 import xml.etree.ElementTree as ET
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 import json
 import os
+
+# Optional dependency for XSD validation. The generator itself does not require it.
+try:
+    from lxml import etree as LET
+except Exception:  # pragma: no cover - optional, environment dependent
+    LET = None
 
 
 class BAS291Generator:
@@ -23,6 +29,38 @@ class BAS291Generator:
         self.version = "29.3.1"
         self.namespace = "http://bas.hd.ui.xml/29.3.1"
         self.schema_location = "http://bas.hd.ui.xml/29.3.1/bas-schema.xsd"
+        # Enumerations aligned with bas-schema.xsd
+        self.allowed_device_types = {
+            "hvac",
+            "lighting",
+            "security",
+            "occupancy",
+            "energy",
+            "fire-safety",
+            "access-control",
+            "elevator",
+            "water-management",
+        }
+        self.allowed_protocols = {
+            "BACnet",
+            "Modbus",
+            "DALI",
+            "KNX",
+            "LonWorks",
+            "MQTT",
+            "HTTP",
+            "TCP",
+        }
+        self.allowed_operators = {
+            "equals",
+            "not-equals",
+            "greater-than",
+            "less-than",
+            "greater-equal",
+            "less-equal",
+            "contains",
+            "between",
+        }
         
     def generate_bas_config(self, config: Dict[str, Any]) -> str:
         """
@@ -34,6 +72,9 @@ class BAS291Generator:
         Returns:
             XML string formatted for BAS 29.3.1
         """
+        # Validate input config early to catch errors deterministically
+        self._validate_config(config)
+
         root = ET.Element("bas-config")
         root.set("xmlns", self.namespace)
         root.set("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
@@ -50,13 +91,14 @@ class BAS291Generator:
         # Add devices configuration
         if "devices" in config:
             devices = ET.SubElement(root, "devices")
-            for device in config["devices"]:
+            # Deterministic ordering for reproducible output
+            for device in sorted(config["devices"], key=lambda d: (str(d.get("id", "")), str(d.get("type", "")))):
                 self._add_device(devices, device)
         
         # Add automation rules
         if "automation" in config:
             automation = ET.SubElement(root, "automation")
-            for rule in config["automation"]:
+            for rule in sorted(config["automation"], key=lambda r: str(r.get("id", ""))):
                 self._add_automation_rule(automation, rule)
         
         # Add UI configuration
@@ -76,38 +118,45 @@ class BAS291Generator:
         ET.SubElement(device_elem, "location").text = device.get("location", "")
         ET.SubElement(device_elem, "protocol").text = device.get("protocol", "BACnet")
         
-        if "properties" in device:
+        if "properties" in device and device["properties"]:
             props = ET.SubElement(device_elem, "properties")
-            for key, value in device["properties"].items():
+            # Deterministic property ordering
+            for key, value in sorted(device["properties"].items(), key=lambda kv: str(kv[0])):
                 prop = ET.SubElement(props, "property")
-                prop.set("name", key)
-                prop.text = str(value)
+                prop.set("name", str(key))
+                prop.text = "" if value is None else str(value)
     
     def _add_automation_rule(self, parent: ET.Element, rule: Dict[str, Any]):
         """Add automation rule to XML"""
         rule_elem = ET.SubElement(parent, "rule")
         rule_elem.set("id", rule.get("id", ""))
-        rule_elem.set("enabled", str(rule.get("enabled", True)).lower())
+        rule_elem.set("enabled", str(bool(rule.get("enabled", True))).lower())
         
         ET.SubElement(rule_elem, "name").text = rule.get("name", "")
         ET.SubElement(rule_elem, "description").text = rule.get("description", "")
         
-        if "conditions" in rule:
+        if "conditions" in rule and rule["conditions"]:
             conditions = ET.SubElement(rule_elem, "conditions")
-            for condition in rule["conditions"]:
+            for condition in sorted(
+                rule["conditions"],
+                key=lambda c: (str(c.get("device", "")), str(c.get("property", "")))
+            ):
                 cond = ET.SubElement(conditions, "condition")
                 cond.set("device", condition.get("device", ""))
                 cond.set("property", condition.get("property", ""))
                 cond.set("operator", condition.get("operator", "equals"))
-                cond.text = str(condition.get("value", ""))
+                cond.text = "" if condition.get("value") is None else str(condition.get("value"))
         
-        if "actions" in rule:
+        if "actions" in rule and rule["actions"]:
             actions = ET.SubElement(rule_elem, "actions")
-            for action in rule["actions"]:
+            for action in sorted(
+                rule["actions"],
+                key=lambda a: (str(a.get("device", "")), str(a.get("property", "")))
+            ):
                 act = ET.SubElement(actions, "action")
                 act.set("device", action.get("device", ""))
                 act.set("property", action.get("property", ""))
-                act.text = str(action.get("value", ""))
+                act.text = "" if action.get("value") is None else str(action.get("value"))
     
     def _add_ui_config(self, parent: ET.Element, ui_config: Dict[str, Any]):
         """Add UI configuration to XML"""
@@ -129,6 +178,120 @@ class BAS291Generator:
         rough_string = ET.tostring(element, encoding='unicode')
         reparsed = minidom.parseString(rough_string)
         return reparsed.toprettyxml(indent="  ").split('\n', 1)[1]
+
+    # -----------------------------
+    # Validation helpers
+    # -----------------------------
+
+    def _validate_config(self, config: Dict[str, Any]) -> None:
+        """Validate config structure and values prior to XML generation.
+
+        Raises ValueError with a concise message on first invalid field.
+        """
+        if not isinstance(config, dict):
+            raise ValueError("config must be a dictionary")
+
+        # System info
+        system_name = config.get("system_name", "HD-BAS-System")
+        description = config.get("description", "")
+        if not isinstance(system_name, str) or not system_name:
+            raise ValueError("system_name must be a non-empty string")
+        if not isinstance(description, str):
+            raise ValueError("description must be a string")
+
+        # Devices
+        devices = config.get("devices", [])
+        if devices is not None and not isinstance(devices, list):
+            raise ValueError("devices must be a list if provided")
+        for device in devices:
+            if not isinstance(device, dict):
+                raise ValueError("each device must be a dictionary")
+            did = device.get("id")
+            dtype = device.get("type")
+            protocol = device.get("protocol", "BACnet")
+            if not isinstance(did, str) or not did:
+                raise ValueError("device.id must be a non-empty string")
+            if not isinstance(dtype, str) or dtype not in self.allowed_device_types:
+                raise ValueError(f"device.type invalid '{dtype}'. Allowed: {sorted(self.allowed_device_types)}")
+            if not isinstance(protocol, str) or protocol not in self.allowed_protocols:
+                raise ValueError(f"device.protocol invalid '{protocol}'. Allowed: {sorted(self.allowed_protocols)}")
+            props = device.get("properties", None)
+            if props is not None and not isinstance(props, dict):
+                raise ValueError("device.properties must be a dictionary if provided")
+
+        # Automation rules
+        automation = config.get("automation", [])
+        if automation is not None and not isinstance(automation, list):
+            raise ValueError("automation must be a list if provided")
+        for rule in automation:
+            if not isinstance(rule, dict):
+                raise ValueError("each rule must be a dictionary")
+            rid = rule.get("id")
+            if not isinstance(rid, str) or not rid:
+                raise ValueError("rule.id must be a non-empty string")
+            enabled = rule.get("enabled", True)
+            if not isinstance(enabled, (bool, str)):
+                raise ValueError("rule.enabled must be a boolean")
+            # Conditions
+            for cond in rule.get("conditions", []) or []:
+                if not isinstance(cond, dict):
+                    raise ValueError("condition must be a dictionary")
+                op = cond.get("operator", "equals")
+                if op not in self.allowed_operators:
+                    raise ValueError(f"condition.operator invalid '{op}'. Allowed: {sorted(self.allowed_operators)}")
+            # Actions
+            for act in rule.get("actions", []) or []:
+                if not isinstance(act, dict):
+                    raise ValueError("action must be a dictionary")
+
+        # UI config
+        ui_cfg = config.get("ui_config", {}) or {}
+        if not isinstance(ui_cfg, dict):
+            raise ValueError("ui_config must be a dictionary if provided")
+        language = ui_cfg.get("language", "ko")
+        if language not in {"ko", "en", "ja", "zh"}:
+            raise ValueError("ui_config.language must be one of: ko, en, ja, zh")
+        refresh = ui_cfg.get("refresh_interval", 30)
+        if not isinstance(refresh, int) or refresh <= 0:
+            raise ValueError("ui_config.refresh_interval must be a positive integer")
+
+    def validate_against_xsd(self, xml_text: str) -> Tuple[bool, List[str]]:
+        """Validate given XML text against local bas-schema.xsd.
+
+        Returns (is_valid, errors)
+        """
+        if LET is None:
+            # lxml not available in runtime
+            return False, [
+                "lxml not available: XSD validation is not supported in this environment"
+            ]
+
+        xsd_path = self._resolve_xsd_path()
+        if not xsd_path or not os.path.exists(xsd_path):
+            return False, [f"XSD not found at '{xsd_path or 'unknown'}'"]
+
+        try:
+            xml_doc = LET.fromstring(xml_text.encode("utf-8"))
+            with open(xsd_path, "rb") as f:
+                schema_doc = LET.parse(f)
+            schema = LET.XMLSchema(schema_doc)
+            schema.assertValid(xml_doc)
+            return True, []
+        except LET.DocumentInvalid as e:  # XSD validation errors
+            return False, [str(err) for err in (e.error_log or [])]
+        except Exception as e:  # pragma: no cover - environment dependent
+            return False, [str(e)]
+
+    def _resolve_xsd_path(self) -> Optional[str]:
+        """Resolve local path to bas-schema.xsd within the repository/workspace."""
+        candidates = [
+            os.path.join(os.getcwd(), "bas-schema.xsd"),
+            os.path.join(os.path.dirname(__file__), "bas-schema.xsd"),
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                return c
+        return None
     
     def save_config(self, config: Dict[str, Any], filepath: str):
         """Save BAS configuration to XML file"""
