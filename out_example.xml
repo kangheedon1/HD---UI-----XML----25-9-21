@@ -1,0 +1,121 @@
+<bas-config xmlns="http://bas.hd.ui.xml/29.3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://bas.hd.ui.xml/29.3.1 http://bas.hd.ui.xml/29.3.1/bas-schema.xsd" version="29.3.1" generated="2025-10-05T20:04:05.156591">
+  <system-info>
+    <name>HD-Smart-Building-Demo</name>
+    <description>HD 스마트 빌딩 데모 시스템 - BAS 29.3.1 통합</description>
+    <version>29.3.1</version>
+  </system-info>
+  <devices>
+    <device id="energy-meter-001" type="energy">
+      <name>전력 계측기</name>
+      <location>전기실</location>
+      <protocol>Modbus</protocol>
+      <properties>
+        <property name="current">45.2</property>
+        <property name="power">9944</property>
+        <property name="power_factor">0.98</property>
+        <property name="voltage">220</property>
+      </properties>
+    </device>
+    <device id="hvac-main-001" type="hvac">
+      <name>메인 HVAC 시스템</name>
+      <location>기계실 1층</location>
+      <protocol>BACnet</protocol>
+      <properties>
+        <property name="energy_saving_mode">True</property>
+        <property name="humidity_setpoint">45.0</property>
+        <property name="mode">auto</property>
+        <property name="schedule_enabled">True</property>
+        <property name="temperature_setpoint">23.0</property>
+      </properties>
+    </device>
+    <device id="lighting-floor1-001" type="lighting">
+      <name>1층 LED 조명 시스템</name>
+      <location>1층 전체</location>
+      <protocol>DALI</protocol>
+      <properties>
+        <property name="color_temperature">4000</property>
+        <property name="daylight_sensor">True</property>
+        <property name="dimming_level">85</property>
+        <property name="occupancy_control">True</property>
+      </properties>
+    </device>
+    <device id="occupancy-001" type="occupancy">
+      <name>점유 감지 센서</name>
+      <location>사무실 구역</location>
+      <protocol>MQTT</protocol>
+      <properties>
+        <property name="detection_range">8.0</property>
+        <property name="reporting_interval">30</property>
+        <property name="sensitivity">medium</property>
+      </properties>
+    </device>
+    <device id="security-main-001" type="security">
+      <name>통합 보안 시스템</name>
+      <location>빌딩 전체</location>
+      <protocol>TCP</protocol>
+      <properties>
+        <property name="access_control">True</property>
+        <property name="armed_status">partial</property>
+        <property name="camera_recording">True</property>
+        <property name="motion_detection">True</property>
+      </properties>
+    </device>
+  </devices>
+  <automation>
+    <rule id="comfort-control-001" enabled="true">
+      <name>쾌적성 제어</name>
+      <description>온도와 조명 자동 조절</description>
+      <conditions>
+        <condition device="hvac-main-001" property="temperature" operator="greater-than">25</condition>
+      </conditions>
+      <actions>
+        <action device="hvac-main-001" property="temperature_setpoint">22</action>
+        <action device="lighting-floor1-001" property="color_temperature">3500</action>
+      </actions>
+    </rule>
+    <rule id="energy-optimization-001" enabled="true">
+      <name>에너지 최적화 규칙</name>
+      <description>점유 상태에 따른 자동 에너지 절약</description>
+      <conditions>
+        <condition device="occupancy-001" property="presence" operator="equals">False</condition>
+      </conditions>
+      <actions>
+        <action device="hvac-main-001" property="energy_saving_mode">on</action>
+        <action device="lighting-floor1-001" property="dimming_level">20</action>
+      </actions>
+    </rule>
+    <rule id="security-auto-001" enabled="true">
+      <name>자동 보안 모드</name>
+      <description>업무 시간 외 자동 보안 활성화</description>
+      <conditions>
+        <condition device="occupancy-001" property="presence" operator="equals">False</condition>
+      </conditions>
+      <actions>
+        <action device="security-main-001" property="armed_status">full</action>
+      </actions>
+    </rule>
+  </automation>
+  <ui-configuration>
+    <theme>hd-advanced-theme</theme>
+    <language>ko</language>
+    <refresh-interval>15</refresh-interval>
+    <dashboards>
+      <dashboard id="main">
+        <name>메인 대시보드</name>
+        <layout>grid</layout>
+      </dashboard>
+      <dashboard id="energy">
+        <name>에너지 관리</name>
+        <layout>chart</layout>
+      </dashboard>
+      <dashboard id="security">
+        <name>보안 관리</name>
+        <layout>list</layout>
+      </dashboard>
+      <dashboard id="comfort">
+        <name>쾌적성 제어</name>
+        <layout>card</layout>
+      </dashboard>
+    </dashboards>
+  </ui-configuration>
+</bas-config>

@@ -12,7 +12,8 @@ import os
 
 class BASServerHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory='/home/runner/work/HD---UI-----XML----25-9-21/HD---UI-----XML----25-9-21', **kwargs)
+        # Serve static files from repository root by default
+        super().__init__(*args, directory=os.getcwd(), **kwargs)
         self.generator = BAS291Generator()
     
     def do_POST(self):
@@ -50,6 +51,36 @@ class BASServerHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 
                 self.wfile.write(json.dumps(response).encode('utf-8'))
+        elif self.path == '/validate-xsd':
+            content_length = int(self.headers.get('Content-Length', '0'))
+            post_data = self.rfile.read(content_length) if content_length else b''
+            try:
+                payload = json.loads(post_data.decode('utf-8')) if post_data else {}
+                xml_text = payload.get('xml', '')
+                if not xml_text:
+                    self.send_response(400)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({'success': False, 'error': 'Missing xml field'}).encode('utf-8'))
+                    return
+
+                is_valid, errors = self.generator.validate_against_xsd(xml_text)
+                self.send_response(200 if is_valid else 422)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'success': is_valid,
+                    'errors': errors,
+                    'message': 'Valid against XSD' if is_valid else 'XSD validation failed'
+                }).encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({'success': False, 'error': str(e)}).encode('utf-8'))
         else:
             self.send_error(404)
     

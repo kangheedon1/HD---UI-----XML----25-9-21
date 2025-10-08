@@ -451,6 +451,10 @@
                             <option value="security" ${data.type === 'security' ? 'selected' : ''}>보안</option>
                             <option value="occupancy" ${data.type === 'occupancy' ? 'selected' : ''}>점유감지</option>
                             <option value="energy" ${data.type === 'energy' ? 'selected' : ''}>에너지</option>
+                            <option value="fire-safety" ${data.type === 'fire-safety' ? 'selected' : ''}>화재안전</option>
+                            <option value="access-control" ${data.type === 'access-control' ? 'selected' : ''}>출입통제</option>
+                            <option value="elevator" ${data.type === 'elevator' ? 'selected' : ''}>엘리베이터</option>
+                            <option value="water-management" ${data.type === 'water-management' ? 'selected' : ''}>물 관리</option>
                         </select>
                     </div>
                 </div>
@@ -473,6 +477,9 @@
                             <option value="DALI" ${data.protocol === 'DALI' ? 'selected' : ''}>DALI</option>
                             <option value="KNX" ${data.protocol === 'KNX' ? 'selected' : ''}>KNX</option>
                             <option value="MQTT" ${data.protocol === 'MQTT' ? 'selected' : ''}>MQTT</option>
+                            <option value="LonWorks" ${data.protocol === 'LonWorks' ? 'selected' : ''}>LonWorks</option>
+                            <option value="HTTP" ${data.protocol === 'HTTP' ? 'selected' : ''}>HTTP</option>
+                            <option value="TCP" ${data.protocol === 'TCP' ? 'selected' : ''}>TCP</option>
                         </select>
                     </div>
                 </div>
@@ -584,18 +591,37 @@
             return data;
         }
         
-        function generateXML() {
+        async function generateXML() {
+            const config = collectFormData();
+            // Try server-side generation first for strict validation and determinism
             try {
-                const config = collectFormData();
-                
-                // Generate XML (simplified client-side version)
-                const xml = generateBASXML(config);
-                generatedXML = xml;
-                
-                document.getElementById('xml-output').textContent = xml;
-                showMessage('XML이 성공적으로 생성되었습니다!', 'success');
-            } catch (error) {
-                showMessage('XML 생성 중 오류가 발생했습니다: ' + error.message, 'error');
+                const resp = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.success && data.xml) {
+                        generatedXML = data.xml;
+                        document.getElementById('xml-output').textContent = data.xml;
+                        showMessage('서버에서 XML이 성공적으로 생성되었습니다.', 'success');
+                        return;
+                    }
+                    throw new Error(data.error || 'Unknown server error');
+                }
+                // Non-200 -> fallback
+                throw new Error('Server generation failed');
+            } catch (e) {
+                // Fallback to client-side generation
+                try {
+                    const xml = generateBASXML(config);
+                    generatedXML = xml;
+                    document.getElementById('xml-output').textContent = xml;
+                    showMessage('클라이언트에서 XML을 생성했습니다. (서버 실패로 인한 대체)', 'success');
+                } catch (err) {
+                    showMessage('XML 생성 중 오류: ' + err.message, 'error');
+                }
             }
         }
         
@@ -682,24 +708,42 @@
                 .replace(/'/g, '&#39;');
         }
         
-        function validateXML() {
+        async function validateXML() {
             if (!generatedXML) {
                 showMessage('먼저 XML을 생성해주세요.', 'error');
                 return;
             }
-            
+            // Try server-side XSD validation first
             try {
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(generatedXML, 'application/xml');
-                
-                const parseError = xmlDoc.querySelector('parsererror');
-                if (parseError) {
-                    showMessage('XML 유효성 검사 실패: ' + parseError.textContent, 'error');
-                } else {
-                    showMessage('XML 유효성 검사 성공! BAS 29.3.1 표준을 준수합니다.', 'success');
+                const resp = await fetch('/validate-xsd', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ xml: generatedXML })
+                });
+                const data = await resp.json();
+                if (resp.status === 200 && data.success) {
+                    showMessage('XSD 유효성 검사 성공!', 'success');
+                    return;
                 }
-            } catch (error) {
-                showMessage('XML 유효성 검사 중 오류: ' + error.message, 'error');
+                if (data && Array.isArray(data.errors) && data.errors.length) {
+                    showMessage('XSD 유효성 검사 실패: ' + data.errors[0], 'error');
+                    return;
+                }
+                throw new Error('Server validation failed');
+            } catch (e) {
+                // Fallback to basic XML well-formedness check
+                try {
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(generatedXML, 'application/xml');
+                    const parseError = xmlDoc.querySelector('parsererror');
+                    if (parseError) {
+                        showMessage('XML 구문 오류: ' + parseError.textContent, 'error');
+                    } else {
+                        showMessage('기본 구문 검사는 통과했습니다.', 'success');
+                    }
+                } catch (err) {
+                    showMessage('XML 유효성 검사 중 오류: ' + err.message, 'error');
+                }
             }
         }
         

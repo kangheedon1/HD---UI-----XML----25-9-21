@@ -1,4 +1,4 @@
-<bas-config xmlns="http://bas.hd.ui.xml/29.3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://bas.hd.ui.xml/29.3.1 http://bas.hd.ui.xml/29.3.1/bas-schema.xsd" version="29.3.1" generated="2025-09-21T10:56:07.024529">
+<bas-config xmlns="http://bas.hd.ui.xml/29.3.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://bas.hd.ui.xml/29.3.1 http://bas.hd.ui.xml/29.3.1/bas-schema.xsd" version="29.3.1" generated="2025-10-05T20:04:00.994823">
   <system-info>
     <name>HD-BAS-Basic</name>
     <description>Basic Building Automation System Configuration</description>
@@ -10,9 +10,9 @@
       <location>Building A - Floor 1</location>
       <protocol>BACnet</protocol>
       <properties>
-        <property name="temperature_setpoint">22.0</property>
         <property name="humidity_setpoint">50.0</property>
         <property name="mode">auto</property>
+        <property name="temperature_setpoint">22.0</property>
       </properties>
     </device>
   </devices>
